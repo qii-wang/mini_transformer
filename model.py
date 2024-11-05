@@ -38,31 +38,32 @@ class SelfAttention(nn.Module):
         B, L, C = x.size() 
         
         # retrive the Q, K, V layers from self.c_attn(x) 
-        Q, K, V = ..., ..., ...
+        Q, K, V = torch.chunk(self.c_attn(x), 3, dim=2)
         # implement getting the multihead attention layers
-        K = ...
-        Q = ...
-        V = ...
+        K = torch.stack(torch.chunk(K, self.n_head, dim=2),dim=1)
+        Q = torch.stack(torch.chunk(Q, self.n_head, dim=2),dim=1)
+        V = torch.stack(torch.chunk(V, self.n_head, dim=2),dim=1)
         # These conditions should be true. 
-        # assert(k.shape == torch.tensor.Size([B, self.n_head, L, C // self.n_head]) )
+        assert(K.shape == torch.Size([B, self.n_head, L, C // self.n_head]) )
         # manual implementation of attention 
         # Interact queries and keys, scale it by the embedding dimension  
-        att = ...
+        att = torch.matmul(Q, torch.transpose(K, 2, 3))/math.sqrt(C/self.n_head)
         # Mask it 
-        att = ... 
+        att = att.masked_fill_(self.mask[:,:,:L,:L]==0, 0)
         # Apply softmax 
-        att = ...
+        sm = nn.Softmax(dim=2)
+        att = sm(att)
         # We have implemented a dropout layer for you. Uncomment it after you are finished. 
-        # att = self.attn_dropout(att) 
+        att = self.attn_dropout(att) 
         # have it interact with the value keys 
-        y = ...
-        # assert(y.shape == torch.tensor.size([B, self.n_heads, L, C // self.n_heads]))
+        y = torch.matmul(att,V)
+        assert(y.shape == torch.Size([B, self.n_head, L, C // self.n_head]))
         # re-assemble all head outputs side by side. Uncomment when you are finished. 
-        # y = y.transpose(1, 2).contiguous().view(B, L, C) 
+        y = y.transpose(1, 2).contiguous().view(B, L, C) 
         # output projection. Uncomment when you are finished. 
-        # y = self.resid_dropout(self.c_proj(y))
+        y = self.resid_dropout(self.c_proj(y))
         # modify the return statement to output y
-        return torch.randn_like(x)
+        return y
 
 class MLP(nn.Module):
 
